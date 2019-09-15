@@ -167,6 +167,7 @@ public class GiraphApplicationMaster {
     heapPerContainer = giraphConf.getYarnTaskHeapMb();
     LOG.info("GiraphAM  for ContainerId " + cId + " ApplicationAttemptId " +
       aId);
+    LOG.info("Yarn client user: " + giraphConf.getYarnClientUser());
   }
 
   /**
@@ -192,6 +193,10 @@ public class GiraphApplicationMaster {
         }
       }
       LOG.info("Done " + done);
+    // CHECKSTYLE: stop IllegalCatch
+    } catch (Throwable e) {
+    // CHECKSTYLE: resume IllegalCatch
+      LOG.error("GiraphApplicationMaster caught error while running.", e);
     } finally {
       // if we get here w/o problems, the executor is already long finished.
       if (null != executor && !executor.isTerminated()) {

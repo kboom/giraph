@@ -1,1 +1,19 @@
 = Giraph
+
+== Installation
+
+You have to install the JAR(s) to your local maven repository from where they can be referenced from other projects.
+
+```
+mvn -pl giraph-core -Phadoop_yarn -Dhadoop.version=2.9.2 -fae -DskipTests -Dcheckstyle.skip  clean install
+```
+
+This will build the version
+
+```
+<dependency>
+	<groupId>org.apache.giraph</groupId>
+	<artifactId>giraph-core</artifactId>
+	<version>1.2.0</version>
+</dependency>
+```

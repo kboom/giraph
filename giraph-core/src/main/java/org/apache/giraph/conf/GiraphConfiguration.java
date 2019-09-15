@@ -774,6 +774,38 @@ public class GiraphConfiguration extends Configuration
   }
 
   /**
+   * Get the user that submitted the YarnApplication.
+   * @return user the user that submitted the application.
+   */
+  public String getYarnClientUser() {
+    return GIRAPH_YARN_CLIENT_USER.get(this);
+  }
+
+  /**
+   * Set the user that submitted the YarnApplication.
+   * @param user the user that submitted the application.
+   */
+  public void setYarnClientUser(String user) {
+    GIRAPH_YARN_CLIENT_USER.set(this, user);
+  }
+
+  /**
+   * Get the user that submitted the YarnApplication.
+   * @return user the user that submitted the application.
+   */
+  public String getYarnClientUser() {
+    return GIRAPH_YARN_CLIENT_USER.get(this);
+  }
+
+  /**
+   * Set the user that submitted the YarnApplication.
+   * @param user the user that submitted the application.
+   */
+  public void setYarnClientUser(String user) {
+    GIRAPH_YARN_CLIENT_USER.set(this, user);
+  }
+
+  /**
    * Get the ZooKeeper list.
    *
    * @return ZooKeeper list of strings, comma separated or null if none set.

@@ -369,10 +369,6 @@ public interface GiraphConstants {
   IntConfOption GIRAPH_YARN_TASK_HEAP_MB = new IntConfOption(
     "giraph.yarn.task.heap.mb", GIRAPH_YARN_TASK_HEAP_MB_DEFAULT,
     "Name of Giraph property for user-configurable heap memory per worker");
-  /** User that submitted the Yarn Application. */
-  StrConfOption GIRAPH_YARN_CLIENT_USER = new StrConfOption(
-    "giraph.yarn.client.user", "yarn",
-    "User that submitted the Yarn Application");
   /** Default priority level in YARN for our task containers */
   int GIRAPH_YARN_PRIORITY = 10;
   /** Is this a pure YARN job (i.e. no MapReduce layer managing Giraph tasks) */

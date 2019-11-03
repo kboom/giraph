@@ -172,7 +172,7 @@ public class YarnUtils {
    */
   public static Path getFsCachePath(final FileSystem fs,
     final ApplicationId appId, final String user) {
-    return new Path("/user/" + user,
+    return new Path(System.getProperty("giraph.cache.dir", "/user") + "/" + user,
       HDFS_RESOURCE_DIR + "/" + appId).makeQualified(fs);
   }
 

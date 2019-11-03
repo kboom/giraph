@@ -18,6 +18,7 @@
 package org.apache.giraph.yarn;
 
 import static org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.OUTDIR;
+import static org.apache.hadoop.yarn.api.ApplicationConstants.LOG_DIR_EXPANSION_VAR;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -438,11 +439,10 @@ public class GiraphYarnClient {
     // 'gam-' prefix is for GiraphApplicationMaster in log file names
     return ImmutableList.of("${JAVA_HOME}/bin/java " +
       "-Xmx" + YARN_APP_MASTER_MEMORY_MB + "M " +
-      "-Xms" + YARN_APP_MASTER_MEMORY_MB + "M " + // TODO: REMOVE examples jar!
-      //TODO: Make constant
+      "-Xms" + YARN_APP_MASTER_MEMORY_MB + "M " +
       "-cp .:${CLASSPATH} org.apache.giraph.yarn.GiraphApplicationMaster " +
-      "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/gam-stdout.log " +
-      "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/gam-stderr.log "
+      "1>" + LOG_DIR_EXPANSION_VAR + "/gam-stdout.log " +
+      "2>" + LOG_DIR_EXPANSION_VAR + "/gam-stderr.log "
     );
   }
 

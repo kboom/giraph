@@ -763,6 +763,10 @@ public class GiraphConfiguration extends Configuration
     return GIRAPH_YARN_TASK_HEAP_MB.get(this);
   }
 
+  public float getYarnTaskOverheadPercent() {
+    return GIRAPH_YARN_TASK_OVERHEAD_PERCENT.get(this);
+  }
+
   /**
    * Set heap size for Giraph tasks in our job run, assuming
    * the job will run on the "pure YARN" profile.

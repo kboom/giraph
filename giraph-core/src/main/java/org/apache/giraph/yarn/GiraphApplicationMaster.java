@@ -601,6 +601,7 @@ public class GiraphApplicationMaster {
           containerStatus.getState() + ", exitStatus=" +
           containerStatus.getExitStatus() + ", diagnostics=" +
           containerStatus.getDiagnostics());
+
         switch (containerStatus.getExitStatus()) {
         case YARN_SUCCESS_EXIT_STATUS:
           successfulCount.incrementAndGet();
@@ -609,6 +610,7 @@ public class GiraphApplicationMaster {
           break; // not success or fail
         default:
           failedCount.incrementAndGet();
+          done = true; // todo hackotron as a workaround to infinite org.apache.giraph.utils.TaskIdsPermitsBarrier.waitForRequiredPermits
           break;
         }
         completedCount.incrementAndGet();

@@ -999,8 +999,11 @@ end[PURE_YARN]*/
       }
     }
 
+    LOG.info("cleanup: Stopping metrics");
     // Stop tracking metrics
     GiraphMetrics.get().shutdown();
+
+    LOG.info("cleanup: Metrics stopped");
   }
 
   /**

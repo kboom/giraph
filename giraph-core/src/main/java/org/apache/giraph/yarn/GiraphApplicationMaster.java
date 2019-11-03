@@ -618,7 +618,7 @@ public class GiraphApplicationMaster {
         done = true;
         LOG.info("All container compeleted. done = " + done);
       } else {
-        LOG.info("After completion of one conatiner. current status is:" +
+        LOG.info("After completion of some containers. Waiting on others. Current status is:" +
           " completedCount :" + completedCount.get() +
           " containersToLaunch :" + containersToLaunch +
           " successfulCount :" + successfulCount.get() +

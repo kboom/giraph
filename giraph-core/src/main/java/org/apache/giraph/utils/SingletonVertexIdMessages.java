@@ -26,21 +26,17 @@ import org.apache.hadoop.io.WritableComparable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 public class SingletonVertexIdMessages<I extends WritableComparable, M extends Writable>
     implements VertexIdMessages<I, M>, VertexIdMessageIterator<I, M> {
 
-  private I destination;
-  private M message;
+  private final Deque<I> identifiers = new ArrayDeque<>();
+  private final Deque<M> messages = new ArrayDeque<>();
 
-  private boolean isFirst = true;
-
-  public SingletonVertexIdMessages<I, M> with(I destination, M message) {
-    isFirst = true;
-    this.destination = destination;
-    this.message = message;
-    return this;
-  }
+  I currentIdentifier;
+  M currentMessage;
 
   @Override
   public VertexIdMessageBytesIterator<I, M> getVertexIdMessageBytesIterator() {
@@ -79,7 +75,8 @@ public class SingletonVertexIdMessages<I extends WritableComparable, M extends W
 
   @Override
   public void add(I vertexId, M data) {
-    throw new IllegalStateException("Should never call this");
+    identifiers.offerLast(vertexId);
+    messages.offerLast(data);
   }
 
   @Override
@@ -134,7 +131,7 @@ public class SingletonVertexIdMessages<I extends WritableComparable, M extends W
 
   @Override
   public M getCurrentMessage() {
-    return message;
+    return currentMessage;
   }
 
   @Override
@@ -149,7 +146,7 @@ public class SingletonVertexIdMessages<I extends WritableComparable, M extends W
 
   @Override
   public M getCurrentData() {
-    return message;
+    return currentMessage;
   }
 
   @Override
@@ -159,26 +156,27 @@ public class SingletonVertexIdMessages<I extends WritableComparable, M extends W
 
   @Override
   public M releaseCurrentData() {
-    return message;
+    return currentMessage;
   }
 
   @Override
   public boolean hasNext() {
-    return isFirst;
+    return !identifiers.isEmpty();
   }
 
   @Override
   public void next() {
-    isFirst = false;
+    currentIdentifier = identifiers.pollLast();
+    currentMessage = messages.pollLast();
   }
 
   @Override
   public I getCurrentVertexId() {
-    return destination;
+    return currentIdentifier;
   }
 
   @Override
   public I releaseCurrentVertexId() {
-    return destination;
+    return currentIdentifier;
   }
 }

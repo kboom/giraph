@@ -122,6 +122,7 @@ public class MasterThread<I extends WritableComparable, V extends Writable,
             Class<? extends Computation> computationClass =
                 bspServiceMaster.getMasterCompute().getComputation();
             superstepState = bspServiceMaster.coordinateSuperstep();
+
             long superstepMillis = System.currentTimeMillis() -
                 startSuperstepMillis;
             superstepSecsMap.put(cachedSuperstep,
@@ -141,7 +142,9 @@ public class MasterThread<I extends WritableComparable, V extends Writable,
                   computationName).increment(superstepMillis);
             }
 
+            LOG.info("Executing post superstep");
             bspServiceMaster.postSuperstep();
+            LOG.info("Executed post superstep");
 
             // If a worker failed, restart from a known good superstep
             if (superstepState == SuperstepState.WORKER_FAILURE) {
@@ -150,9 +153,12 @@ public class MasterThread<I extends WritableComparable, V extends Writable,
             }
             endMillis = System.currentTimeMillis();
           }
+
+          LOG.info("Setting job state to FINISHED");
           bspServiceMaster.setJobState(ApplicationState.FINISHED, -1, -1);
         }
       }
+      LOG.info("About to clean up");
       bspServiceMaster.cleanup(superstepState);
       if (!superstepSecsMap.isEmpty()) {
         GiraphTimers.getInstance().getShutdownMs().
@@ -184,6 +190,7 @@ public class MasterThread<I extends WritableComparable, V extends Writable,
         GiraphTimers.getInstance().getTotalMs().
           increment(System.currentTimeMillis() - initializeMillis);
       }
+      LOG.info("Executing post application");
       bspServiceMaster.postApplication();
       // CHECKSTYLE: stop IllegalCatchCheck
     } catch (Exception e) {

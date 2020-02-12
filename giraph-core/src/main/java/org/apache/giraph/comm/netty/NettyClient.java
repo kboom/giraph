@@ -704,10 +704,10 @@ public class NettyClient {
       ++reconnectFailures;
       LOG.warn("getNextChannel: Failed to reconnect to " +  remoteServer +
           " on attempt " + reconnectFailures + " out of " +
-          maxConnectionFailures + " max attempts, sleeping for 5 secs",
+          maxConnectionFailures + " max attempts, sleeping for " + waitTimeBetweenConnectionRetriesMs + " secs",
           connectionFuture.cause());
       try {
-        Thread.sleep(5000);
+        Thread.sleep(waitTimeBetweenConnectionRetriesMs);
       } catch (InterruptedException e) {
         LOG.warn("getNextChannel: Unexpected interrupted exception", e);
       }

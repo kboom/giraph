@@ -18,12 +18,11 @@
 
 package org.apache.giraph.comm;
 
-import static org.apache.giraph.conf.GiraphConstants.ADDITIONAL_MSG_REQUEST_SIZE;
-import static org.apache.giraph.conf.GiraphConstants.MAX_MSG_REQUEST_SIZE;
-
-import java.util.Iterator;
-
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import org.apache.giraph.bsp.CentralizedServiceWorker;
+import org.apache.giraph.comm.messages.MessageStore;
 import org.apache.giraph.comm.netty.NettyWorkerClientRequestProcessor;
 import org.apache.giraph.comm.requests.SendWorkerMessagesRequest;
 import org.apache.giraph.comm.requests.WritableRequest;
@@ -33,11 +32,17 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.partition.PartitionOwner;
 import org.apache.giraph.utils.ByteArrayVertexIdMessages;
 import org.apache.giraph.utils.PairList;
+import org.apache.giraph.utils.SingletonVertexIdMessages;
 import org.apache.giraph.utils.VertexIdMessages;
 import org.apache.giraph.worker.WorkerInfo;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.log4j.Logger;
+
+import java.util.Iterator;
+
+import static org.apache.giraph.conf.GiraphConstants.ADDITIONAL_MSG_REQUEST_SIZE;
+import static org.apache.giraph.conf.GiraphConstants.MAX_MSG_REQUEST_SIZE;
 
 /**
  * Aggregates the messages to be sent to workers so they can be sent
@@ -60,6 +65,9 @@ public class SendMessageCache<I extends WritableComparable, M extends Writable>
   protected final int maxMessagesSizePerWorker;
   /** NettyWorkerClientRequestProcessor for message sending */
   protected final NettyWorkerClientRequestProcessor<I, ?, ?> clientProcessor;
+
+  private final Int2ObjectOpenHashMap<SingletonVertexIdMessages<I, M>> localMessageMap =
+      new Int2ObjectOpenHashMap<>();
   /**
    * Constructor
    *
@@ -154,21 +162,33 @@ public class SendMessageCache<I extends WritableComparable, M extends Writable>
         ") to " + destVertexId + " on worker " + workerInfo);
     }
     ++totalMsgsSentInSuperstep;
-    // Add the message to the cache
-    int workerMessageSize = addMessage(
-      workerInfo, partitionId, destVertexId, message);
-    // Send a request if the cache of outgoing message to
-    // the remote worker 'workerInfo' is full enough to be flushed
-    if (workerMessageSize >= maxMessagesSizePerWorker) {
-      PairList<Integer, VertexIdMessages<I, M>>
-        workerMessages = removeWorkerMessages(workerInfo);
-      WritableRequest writableRequest =
-        new SendWorkerMessagesRequest<I, M>(workerMessages);
-      totalMsgBytesSentInSuperstep += writableRequest.getSerializedSize();
-      clientProcessor.doRequest(workerInfo, writableRequest);
-      // Notify sending
-      getServiceWorker().getGraphTaskManager().notifySentMessages();
+
+    // In case this is the message destined to the same worker, short-circuit here so we don't have to serialize and
+    // deserialize needlessly, if the incoming message store supports this
+    if (getServiceWorker().getWorkerInfo().getTaskId() == workerInfo.getTaskId()) {
+      SingletonVertexIdMessages<I, M> partitionMap = localMessageMap.get(partitionId);
+      if(partitionMap == null) {
+        partitionMap = new SingletonVertexIdMessages<>();
+        localMessageMap.put(partitionId, partitionMap);
+      }
+      partitionMap.add(destVertexId, message);
+    } else {
+      // Add the message to the cache
+      int workerMessageSize = addMessage(
+          workerInfo, partitionId, destVertexId, message);
+      // Send a request if the cache of outgoing message to
+      // the remote worker 'workerInfo' is full enough to be flushed
+      if (workerMessageSize >= maxMessagesSizePerWorker) {
+        PairList<Integer, VertexIdMessages<I, M>>
+            workerMessages = removeWorkerMessages(workerInfo);
+        WritableRequest writableRequest =
+            new SendWorkerMessagesRequest<I, M>(workerMessages);
+        totalMsgBytesSentInSuperstep += writableRequest.getSerializedSize();
+        clientProcessor.doRequest(workerInfo, writableRequest);
+      }
     }
+    // Notify sending
+    getServiceWorker().getGraphTaskManager().notifySentMessages();
   }
 
   /**
@@ -234,6 +254,8 @@ public class SendMessageCache<I extends WritableComparable, M extends Writable>
    * Flush the rest of the messages to the workers.
    */
   public void flush() {
+    flushAll();
+
     PairList<WorkerInfo, PairList<Integer,
         VertexIdMessages<I, M>>>
     remainingMessageCache = removeAllMessages();
@@ -249,6 +271,17 @@ public class SendMessageCache<I extends WritableComparable, M extends Writable>
       clientProcessor.doRequest(
         iterator.getCurrentFirst(), writableRequest);
     }
+  }
+
+  private void flushAll() {
+    final MessageStore incomingMessageStore = getServiceWorker().getServerData()
+        .getIncomingMessageStore();
+    final ObjectIterator<Int2ObjectMap.Entry<SingletonVertexIdMessages<I, M>>> it = localMessageMap.int2ObjectEntrySet().fastIterator();
+    while(it.hasNext()) {
+      final Int2ObjectMap.Entry<SingletonVertexIdMessages<I, M>> entry = it.next();
+      incomingMessageStore.addPartitionMessages(entry.getIntKey(), entry.getValue());
+    }
+    localMessageMap.clear();
   }
 
   /**

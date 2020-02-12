@@ -53,7 +53,7 @@ import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 
-import org.apache.log4j.Logger;
+import org.apache.log4j.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -115,6 +115,8 @@ public class GiraphApplicationMaster {
   private final int containersToLaunch;
   /** MB of JVM heap per Giraph task container */
   private final int heapPerContainer;
+  /** Memory overhead for JVM to prevent running beyond memory limits and being killed by yarn**/
+  private final int containerMemoryRequest;
   /** Giraph configuration for this job, transported here by YARN framework */
   private final ImmutableClassesGiraphConfiguration giraphConf;
   /** Yarn configuration for this job*/
@@ -165,8 +167,12 @@ public class GiraphApplicationMaster {
     containersToLaunch = giraphConf.getMaxWorkers() + 1;
     executor = Executors.newFixedThreadPool(containersToLaunch);
     heapPerContainer = giraphConf.getYarnTaskHeapMb();
+    containerMemoryRequest =
+        Math.round((heapPerContainer + heapPerContainer * giraphConf.getYarnTaskOverheadPercent()) + 0.5f);
+
     LOG.info("GiraphAM  for ContainerId " + cId + " ApplicationAttemptId " +
       aId);
+    LOG.info("Yarn client user: " + giraphConf.getYarnClientUser());
   }
 
   /**
@@ -192,6 +198,10 @@ public class GiraphApplicationMaster {
         }
       }
       LOG.info("Done " + done);
+    // CHECKSTYLE: stop IllegalCatch
+    } catch (Throwable e) {
+    // CHECKSTYLE: resume IllegalCatch
+      LOG.error("GiraphApplicationMaster caught error while running.", e);
     } finally {
       // if we get here w/o problems, the executor is already long finished.
       if (null != executor && !executor.isTerminated()) {
@@ -272,7 +282,7 @@ public class GiraphApplicationMaster {
     // Set up resource type requirements
     // For now, only memory is supported so we set memory requirements
     Resource capability = Records.newRecord(Resource.class);
-    capability.setMemory(heapPerContainer);
+    capability.setMemorySize(containerMemoryRequest);
 
     ContainerRequest request = new ContainerRequest(capability, null, null,
       pri);
@@ -474,12 +484,21 @@ public class GiraphApplicationMaster {
      * start request to the CM.
      */
     public void run() {
+      printConfiguration(giraphConf);
       // Connect to ContainerManager
       // configure the launcher for the Giraph task it will host
       ContainerLaunchContext ctx = buildContainerLaunchContext();
       // request CM to start this container as spec'd in ContainerLaunchContext
       containerListener.addContainer(container.getId(), container);
       nmClientAsync.startContainerAsync(container, ctx);
+    }
+
+    private void printConfiguration(GiraphConfiguration conf) {
+      LOG.info("START OF GIRAPH CONFIGURATION");
+      for (Map.Entry<String, String> next : conf) {
+        LOG.info(next.getKey() + "=" + next.getValue());
+      }
+      LOG.info("END OF GIRAPH CONFIGURATION");
     }
 
     /**
@@ -529,9 +548,9 @@ public class GiraphApplicationMaster {
      */
     private List<String> generateShellExecCommand() {
       return ImmutableList.of("java " +
-        "-Xmx" + heapPerContainer + "M " +
-        "-Xms" + heapPerContainer + "M " +
-        "-cp .:${CLASSPATH} " +
+        heapOpts() + " " +
+        giraphConf.get("container.java.opts") +
+        " -cp .:${CLASSPATH} " +
         "org.apache.giraph.yarn.GiraphYarnTask " +
         appAttemptId.getApplicationId().getClusterTimestamp() + " " +
         appAttemptId.getApplicationId().getId() + " " +
@@ -542,6 +561,12 @@ public class GiraphApplicationMaster {
         "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
         "/task-" + container.getId().getId() + "-stderr.log "
       );
+    }
+
+    private String heapOpts() {
+      final String defaultMaxMemory = "-Xmx" + heapPerContainer + "M";
+      final String defaultMinMemory = "-Xms" + heapPerContainer + "M";
+      return defaultMaxMemory + " " + defaultMinMemory;
     }
 
     /**
@@ -576,6 +601,7 @@ public class GiraphApplicationMaster {
           containerStatus.getState() + ", exitStatus=" +
           containerStatus.getExitStatus() + ", diagnostics=" +
           containerStatus.getDiagnostics());
+
         switch (containerStatus.getExitStatus()) {
         case YARN_SUCCESS_EXIT_STATUS:
           successfulCount.incrementAndGet();
@@ -584,6 +610,7 @@ public class GiraphApplicationMaster {
           break; // not success or fail
         default:
           failedCount.incrementAndGet();
+          done = true; // todo hackotron as a workaround to infinite org.apache.giraph.utils.TaskIdsPermitsBarrier.waitForRequiredPermits
           break;
         }
         completedCount.incrementAndGet();
@@ -593,7 +620,7 @@ public class GiraphApplicationMaster {
         done = true;
         LOG.info("All container compeleted. done = " + done);
       } else {
-        LOG.info("After completion of one conatiner. current status is:" +
+        LOG.info("After completion of some containers. Waiting on others. Current status is:" +
           " completedCount :" + completedCount.get() +
           " containersToLaunch :" + containersToLaunch +
           " successfulCount :" + successfulCount.get() +

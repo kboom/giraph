@@ -18,6 +18,7 @@
 package org.apache.giraph.yarn;
 
 import static org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.OUTDIR;
+import static org.apache.hadoop.yarn.api.ApplicationConstants.LOG_DIR_EXPANSION_VAR;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -194,6 +195,8 @@ public class GiraphYarnClient {
     GiraphConstants.IS_PURE_YARN_JOB.set(giraphConf, true);
     GiraphConstants.SPLIT_MASTER_WORKER.set(giraphConf, true);
     giraphConf.set("mapred.job.id", "giraph_yarn_" + appId); // ZK app base path
+    giraphConf.setYarnClientUser(System.getProperty("user.name"));
+    LOG.info("Yarn client user: " + giraphConf.getYarnClientUser());
   }
 
   /**
@@ -309,7 +312,8 @@ public class GiraphYarnClient {
     FileSystem fs = FileSystem.get(giraphConf);
     Path baseCacheDir = YarnUtils.getFsCachePath(fs, appId);
     if (fs.exists(baseCacheDir)) {
-      LOG.info("Cleaning up HDFS distributed cache directory for Giraph job.");
+      LOG.info("Cleaning up HDFS distributed cache directory for Giraph job: " +
+        baseCacheDir);
       fs.delete(baseCacheDir, true); // stuff inside
       fs.delete(baseCacheDir, false); // dir itself
     }
@@ -435,11 +439,10 @@ public class GiraphYarnClient {
     // 'gam-' prefix is for GiraphApplicationMaster in log file names
     return ImmutableList.of("${JAVA_HOME}/bin/java " +
       "-Xmx" + YARN_APP_MASTER_MEMORY_MB + "M " +
-      "-Xms" + YARN_APP_MASTER_MEMORY_MB + "M " + // TODO: REMOVE examples jar!
-      //TODO: Make constant
+      "-Xms" + YARN_APP_MASTER_MEMORY_MB + "M " +
       "-cp .:${CLASSPATH} org.apache.giraph.yarn.GiraphApplicationMaster " +
-      "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/gam-stdout.log " +
-      "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/gam-stderr.log "
+      "1>" + LOG_DIR_EXPANSION_VAR + "/gam-stdout.log " +
+      "2>" + LOG_DIR_EXPANSION_VAR + "/gam-stderr.log "
     );
   }
 

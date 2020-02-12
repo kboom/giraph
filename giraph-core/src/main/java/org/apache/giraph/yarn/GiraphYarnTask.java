@@ -79,6 +79,7 @@ public class GiraphYarnTask<I extends WritableComparable, V extends Writable,
     conf.setInt("mapred.task.partition", bspTaskId);
     proxy = buildProxyMapperContext(taskAttemptId);
     graphTaskManager = new GraphTaskManager<I, V, E>(proxy);
+    LOG.info("Yarn client user: " + conf.getYarnClientUser());
   }
 
   /**
@@ -88,8 +89,11 @@ public class GiraphYarnTask<I extends WritableComparable, V extends Writable,
     // Notify the master quicker if there is worker failure rather than
     // waiting for ZooKeeper to timeout and delete the ephemeral znodes
     try {
+      LOG.info("Setting up");
       graphTaskManager.setup(null); // defaults GTM to "assume fatjar mode"
+      LOG.info("Executing");
       graphTaskManager.execute();
+      LOG.info("Cleaning up");
       graphTaskManager.cleanup();
     } catch (InterruptedException ie) {
       LOG.error("run() caught an unrecoverable InterruptedException.", ie);
@@ -99,13 +103,17 @@ public class GiraphYarnTask<I extends WritableComparable, V extends Writable,
       // CHECKSTYLE: stop IllegalCatch
     } catch (RuntimeException e) {
       // CHECKSTYLE: resume IllegalCatch
+      LOG.info("Cleaning up zookeeper");
       graphTaskManager.zooKeeperCleanup();
+      LOG.info("Cleaning up worker-related data");
       graphTaskManager.workerFailureCleanup();
       throw new RuntimeException(
         "run: Caught an unrecoverable exception " + e.getMessage(), e);
     } finally {
       // YARN: must complete the commit of the final output, Hadoop isn't there.
+      LOG.info("Finalizing yarn job");
       finalizeYarnJob();
+      LOG.info("Yarn job finalized");
     }
   }
 

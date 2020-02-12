@@ -1811,7 +1811,7 @@ public class BspServiceMaster<I extends WritableComparable,
               maxTasks  +  " desired children from " +
               cleanedUpPath);
         }
-        if (cleanedUpChildrenList.size() == maxTasks) {
+        if (cleanedUpChildrenList.size() >= maxTasks) {
           break;
         }
         if (LOG.isInfoEnabled()) {

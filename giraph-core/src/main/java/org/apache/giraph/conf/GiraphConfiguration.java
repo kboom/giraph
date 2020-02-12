@@ -763,6 +763,10 @@ public class GiraphConfiguration extends Configuration
     return GIRAPH_YARN_TASK_HEAP_MB.get(this);
   }
 
+  public float getYarnTaskOverheadPercent() {
+    return GIRAPH_YARN_TASK_OVERHEAD_PERCENT.get(this);
+  }
+
   /**
    * Set heap size for Giraph tasks in our job run, assuming
    * the job will run on the "pure YARN" profile.
@@ -771,6 +775,22 @@ public class GiraphConfiguration extends Configuration
    */
   public void setYarnTaskHeapMb(int heapMb) {
     GIRAPH_YARN_TASK_HEAP_MB.set(this, heapMb);
+  }
+
+  /**
+   * Get the user that submitted the YarnApplication.
+   * @return user the user that submitted the application.
+   */
+  public String getYarnClientUser() {
+    return GIRAPH_YARN_CLIENT_USER.get(this);
+  }
+
+  /**
+   * Set the user that submitted the YarnApplication.
+   * @param user the user that submitted the application.
+   */
+  public void setYarnClientUser(String user) {
+    GIRAPH_YARN_CLIENT_USER.set(this, user);
   }
 
   /**
